@@ -1,0 +1,68 @@
+- hosts: all
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: Install required packages
+      apt:
+        name: ['ca-certificates', 'curl', 'gnupg', 'python3-pip']
+        state: present
+        update_cache: yes
+      tags: packages
+
+    - name: Install docker-py
+      ansible.builtin.shell: "pip install docker"
+      tags: packages
+    
+    - name: Add Docker s GPG key for ubuntu from official site
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags:
+        - docker
+    
+    - name: Verify gpg key with the fingerprint
+      apt_key:
+        id: 0EBFCD88
+        state: present
+      tags:
+        - docker
+    
+    - name: Configure Docker for ubuntu stable repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+        update_cache: yes
+      tags:
+        - docker
+    
+    - name: Install docker-ce
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+      tags:
+        - docker
+    
+    - name: Add ubuntu user to docker group
+      user:
+        name: "ubuntu"
+        group: "docker"
+        append: yes
+      tags:
+        - docker
+
+    - name: Clone a django repository
+      git:
+        repo: "https://github.com/Kryuchcov/django_sample.git"
+        dest: /home/ubuntu/django_sample
+        clone: yes
+        update: yes
+      tags: clon
+
+    - name: Build
+      ansible.builtin.shell: "cd django_sample && docker build -t django_sample ."
+      tags: build
+
+    - name: Run image
+      ansible.builtin.shell: "docker run -d -e DJANGO_ALLOWED_HOSTS='{{ public_ip }}' -p 8000:8000 django_sample"
+      tags: run
